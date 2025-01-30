@@ -1,1 +1,1 @@
-# celestia-snapshot-finder
+# Celestia Snapshot Finder
