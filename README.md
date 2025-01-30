@@ -1,5 +1,7 @@
 # Celestia Snapshot Finder
 
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/21state/celestia-snapshot-finder)](https://github.com/21state/celestia-snapshot-finder/releases/latest)
+
 CLI tool for downloading Celestia node snapshots. Uses [celestia-snapshots](https://github.com/21state/celestia-snapshots) repository as a source of available snapshots.
 
 ## Features
