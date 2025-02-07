@@ -37,8 +37,8 @@ Supports different node types and snapshot types with automatic or manual select
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&chainID, "chain-id", "celestia", "Chain ID")
-	rootCmd.PersistentFlags().BoolVar(&manual, "manual", false, "Enable manual selection")
+	rootCmd.PersistentFlags().StringVarP(&chainID, "chain-id", "n", "celestia", "Chain ID")
+	rootCmd.PersistentFlags().BoolVarP(&manual, "manual", "m", false, "Enable manual selection")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug mode with extra information")
 }
 
@@ -94,15 +94,16 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	nodeType := args[0]
 	snapshotType := args[1]
 
-	printInfo("Searching for %s-%s snapshots [chain-id: %s, mode: %s]", 
-		nodeType, snapshotType, chainID, map[bool]string{true: "manual", false: "auto"}[manual])
-	
-	debugPrint("Starting with arguments: nodeType=%s, snapshotType=%s, chainID=%s, manual=%v", 
+	debugPrint("Starting with raw arguments: nodeType=%s, snapshotType=%s, chainID=%s, manual=%v", 
 		nodeType, snapshotType, chainID, manual)
 
-	if err := validateArgs(nodeType, snapshotType); err != nil {
+	nodeType, snapshotType, err := validateArgs(nodeType, snapshotType)
+	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
+
+	printInfo("Searching for %s-%s snapshots [chain-id: %s, mode: %s]", 
+		nodeType, snapshotType, chainID, map[bool]string{true: "manual", false: "auto"}[manual])
 
 	cfg, err := fetchProviders()
 	if err != nil {
@@ -220,24 +221,30 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateArgs(nodeType, snapshotType string) error {
-	validNodeTypes := map[string]bool{
-		"consensus": true,
-		"bridge":    true,
+func validateArgs(nodeType, snapshotType string) (string, string, error) {
+	nodeTypeMap := map[string]string{
+		"c": "consensus",
+		"b": "bridge",
+		"consensus": "consensus",
+		"bridge":    "bridge",
 	}
 
-	validSnapshotTypes := map[string]bool{
-		"pruned":  true,
-		"archive": true,
+	snapshotTypeMap := map[string]string{
+		"p": "pruned",
+		"a": "archive",
+		"pruned":  "pruned",
+		"archive": "archive",
 	}
 
-	if !validNodeTypes[nodeType] {
-		return fmt.Errorf("invalid node type: %s. Must be one of: consensus, bridge", nodeType)
+	fullNodeType, validNode := nodeTypeMap[nodeType]
+	if !validNode {
+		return "", "", fmt.Errorf("invalid node type: %s. Must be one of: consensus (c), bridge (b)", nodeType)
 	}
 
-	if !validSnapshotTypes[snapshotType] {
-		return fmt.Errorf("invalid snapshot type: %s. Must be one of: pruned, archive", snapshotType)
+	fullSnapshotType, validSnapshot := snapshotTypeMap[snapshotType]
+	if !validSnapshot {
+		return "", "", fmt.Errorf("invalid snapshot type: %s. Must be one of: pruned (p), archive (a)", snapshotType)
 	}
 
-	return nil
+	return fullNodeType, fullSnapshotType, nil
 }
