@@ -41,7 +41,17 @@ func (st *SpeedTester) TestProviders(providers []provider.ProviderInfo) []provid
 			st.debugLog("Running speed test for provider %s", result[idx].Name)
 			speed := st.testSpeed(result[idx].URL)
 			result[idx].Speed = speed
-			st.debugLog("Speed test result for %s: %.2f MB/s", result[idx].Name, speed)
+			
+			// Calculate download time
+			if result[idx].Speed > 0 && result[idx].Size > 0 {
+				speedInBytes := result[idx].Speed * 1000 * 1000 // Convert MB/s to bytes/s
+				result[idx].DownloadTime = float64(result[idx].Size) / speedInBytes
+			} else {
+				result[idx].DownloadTime = float64(^uint64(0) >> 1) // Max float64 for sorting
+			}
+			
+			st.debugLog("Speed test result for %s: %.2f MB/s, download time: %.2f seconds", 
+				result[idx].Name, speed, result[idx].DownloadTime)
 		}(i)
 	}
 

@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/21state/celestia-snapshot-finder/internal/config"
@@ -49,7 +50,7 @@ func (m *Manager) CheckHealth(providers []ProviderInfo) []ProviderInfo {
 	var healthy []ProviderInfo
 	for _, p := range providers {
 		m.debugLog("Checking health for snapshot %s (%s)", p.Name, p.URL)
-		isHealthy, err := m.isHealthy(p.URL)
+		isHealthy, err := m.isHealthy(p.URL, &p)
 		if !isHealthy {
 			m.debugLog("Snapshot %s health check failed: %v", p.Name, err)
 			continue
@@ -60,7 +61,7 @@ func (m *Manager) CheckHealth(providers []ProviderInfo) []ProviderInfo {
 	return healthy
 }
 
-func (m *Manager) isHealthy(url string) (bool, error) {
+func (m *Manager) isHealthy(url string, info *ProviderInfo) (bool, error) {
 	start := time.Now()
 	resp, err := m.client.Head(url)
 	if err != nil {
@@ -79,8 +80,16 @@ func (m *Manager) isHealthy(url string) (bool, error) {
 	contentLength := resp.Header.Get("Content-Length")
 	if contentLength == "" {
 		m.debugLog("  Warning: Content-Length header not provided")
+		info.Size = 0
 	} else {
 		m.debugLog("  Content-Length: %s", contentLength)
+		size, err := strconv.ParseInt(contentLength, 10, 64)
+		if err != nil {
+			m.debugLog("  Warning: Failed to parse Content-Length: %v", err)
+			info.Size = 0
+		} else {
+			info.Size = size
+		}
 	}
 
 	contentType := resp.Header.Get("Content-Type")
@@ -97,10 +106,12 @@ func (m *Manager) isHealthy(url string) (bool, error) {
 }
 
 type ProviderInfo struct {
-	Name        string
-	URL         string
-	MetadataURL string
-	Speed       float64
+	Name         string
+	URL          string
+	MetadataURL  string
+	Speed        float64
+	Size         int64
+	DownloadTime float64
 }
 
 func (p ProviderInfo) String() string {
