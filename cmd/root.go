@@ -159,7 +159,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	providers = speedTester.TestProviders(providers)
 
 	sort.Slice(providers, func(i, j int) bool {
-		return providers[i].Speed > providers[j].Speed
+		return providers[i].DownloadTime < providers[j].DownloadTime
 	})
 
 	var selectedProvider provider.ProviderInfo
@@ -172,7 +172,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		if manual {
 			fmt.Println("\nAvailable snapshots:")
 			for i, p := range providers {
-				fmt.Printf("%d. %s (%.2f MB/s)\n", i+1, p.Name, p.Speed)
+				sizeGB := float64(p.Size) / 1000 / 1000 / 1000
+				fmt.Printf("%d. %s (%.2f MB/s, %.2f GB, %s)\n", 
+					i+1, p.Name, p.Speed, sizeGB, formatDuration(p.DownloadTime))
 			}
 
 			var choice int
@@ -191,7 +193,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	printInfo("Selected snapshot from %s (%.2f MB/s)", selectedProvider.Name, selectedProvider.Speed)
+	sizeGB := float64(selectedProvider.Size) / 1000 / 1000 / 1000
+	printInfo("Selected snapshot from %s (%.2f MB/s, %.2f GB, %s)", 
+		selectedProvider.Name, selectedProvider.Speed, sizeGB, formatDuration(selectedProvider.DownloadTime))
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -213,12 +217,28 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n%s Download completed!\n", success("✓"))
 	fmt.Printf("Snapshot saved to: %s\n", result.Path)
 	
-	sizeGB := float64(result.Size) / 1000 / 1000 / 1000
+	sizeGB = float64(result.Size) / 1000 / 1000 / 1000
 	fmt.Printf("Size: %.2f GB\n", sizeGB)
 	debugPrint("Download completed successfully. File size: %d bytes (%.2f GB)", 
 		result.Size, sizeGB)
 
 	return nil
+}
+
+func formatDuration(seconds float64) string {
+	if seconds <= 0 || seconds == float64(^uint64(0)>>1) {
+		return "unknown"
+	}
+	hours := int(seconds) / 3600
+	minutes := (int(seconds) % 3600) / 60
+	secs := int(seconds) % 60
+	
+	if hours > 0 {
+		return fmt.Sprintf("%dh %dm %ds", hours, minutes, secs)
+	} else if minutes > 0 {
+		return fmt.Sprintf("%dm %ds", minutes, secs)
+	}
+	return fmt.Sprintf("%ds", secs)
 }
 
 func validateArgs(nodeType, snapshotType string) (string, string, error) {
